@@ -85,10 +85,34 @@ def load_google_sheet(sheet_url):
             csv_url = sheet_url
         
         df = pd.read_csv(csv_url)
-        return df
+        
+        # 종목명 딕셔너리 생성
+        stock_names = {}
+        if '종목코드' in df.columns and '종목명' in df.columns:
+            for idx, row in df.iterrows():
+                codes_str = str(row['종목코드']).strip()
+                names_str = str(row['종목명']).strip()
+                
+                # 쉼표로 구분
+                codes_list = [c.strip() for c in codes_str.split(',') if c.strip()]
+                names_list = [n.strip() for n in names_str.split(',') if n.strip()]
+                
+                # 공백으로도 구분 (쉼표 없는 경우)
+                if len(codes_list) == 1:
+                    codes_list = [c.strip() for c in codes_str.split() if c.strip()]
+                if len(names_list) == 1:
+                    names_list = [n.strip() for n in names_str.split() if n.strip()]
+                
+                # 종목코드 : 종목명 매칭
+                for i, code in enumerate(codes_list):
+                    if code.isdigit() and len(code) == 6:
+                        if i < len(names_list):
+                            stock_names[code] = names_list[i]
+        
+        return df, stock_names
     except Exception as e:
         st.error(f"❌ 구글 시트 로딩 실패: {str(e)}")
-        return None
+        return None, {}
 
 # 한국 주식 데이터
 @st.cache_data(ttl=300)
@@ -107,14 +131,82 @@ def get_data(ticker):
                 df = stock.history(period="2y")
             
             korean_names = {
+                # 시가총액 대형주
                 '005930': '삼성전자', '000660': 'SK하이닉스', '035720': '카카오',
                 '035420': 'NAVER', '005380': '현대차', '000270': '기아',
                 '051910': 'LG화학', '006400': '삼성SDI', '207940': '삼성바이오로직스',
                 '068270': '셀트리온', '028260': '삼성물산', '042700': '한미반도체',
-                '373220': 'LG에너지솔루션', '196170': '알테오젠', '247540': '에코프로비엠'
+                '373220': 'LG에너지솔루션', '196170': '알테오젠', '247540': '에코프로비엠',
+                
+                # 시가총액 코스닥
+                '086520': '에코프로', '066970': '엘앤에프', '091990': '셀트리온헬스케어',
+                '214450': '파마리서치', '086790': '하나금융지주', '298380': 'HD현대중공업',
+                '214370': '케어젠', '347860': '알체라', '310210': '보로노이',
+                '141450': '셀트리온제약', '108490': '로보티즈', '058470': '리노공업',
+                '105560': 'KB금융', '024110': '기업은행', '028300': 'HLB',
+                '000250': '삼천당제약', '329180': '와이제이엠게임즈',
+                
+                # 전기차/배터리
+                '005830': 'DB하이텍', '000270': '기아', '012330': '현대모비스',
+                '161390': '한국타이어', '009150': '삼성전기', '034020': '두산에너빌리티',
+                '051910': 'LG화학', '096770': 'SK이노베이션',
+                
+                # 원전/SMR
+                '307950': '현대오토에버', '052690': '한전기술', '051600': '한전KPS',
+                '130660': '한전산업개발', '089010': '켐트로닉스', '010350': '두산밥캣',
+                '079430': '현대리바트', '095660': '네오위즈', '010820': '퍼시픽',
+                
+                # 반도체
+                '088350': '한화오션', '036930': '주성엔지니어링', '084850': '아이티엠반도체',
+                '089030': '테크윙', '240810': '원익IPS', '161570': '현대중공업',
+                '064760': '티씨케이', '039030': '이오테크닉스',
+                '095340': 'ISC', '079810': '디이엔티', '123860': '아나패스',
+                '086900': '메디톡스', '067310': '하나마이크론',
+                
+                # AI/빅데이터
+                '035420': 'NAVER', '035720': '카카오', '402340': 'SK스퀘어',
+                '108860': '셀바스AI', '032640': 'LG유플러스', '352820': '하이브',
+                
+                # 바이오/제약
+                '326030': 'SK바이오팜', '068270': '셀트리온', '207940': '삼성바이오로직스',
+                '141780': '유틸렉스', '003540': '대신증권', '214150': '클래시스',
+                '000100': '유한양행', '128940': '한미약품', '170900': '동아에스티',
+                '069620': '대웅제약', '023390': '엘앤에프아이피',
+                '009290': '광동제약', '000520': '삼일제약', '234080': '컨버즈',
+                '003850': '보령제약', '271980': '에이티넘',
+                '000220': '영일제약', '000570': '하이트진로', '001060': '일양약품',
+                '004720': '녹십자', '000220': '영일제약',
+                
+                # 증권/금융
+                '000100': '유한양행', '128940': '한미약품', '170900': '동아에스티',
+                '234080': '컨버즈', '003850': '보령제약', '271980': '에이티넘',
+                '000520': '삼일제약', '000570': '하이트진로', '001060': '일양약품',
+                '004720': '녹십자', '000220': '영일제약',
+                
+                # 방산
+                '000880': '한화', '079550': 'LIG넥스원', '012450': '한화에어로스페이스',
+                '272210': '한화시스템', '047810': '한화오션',
+                
+                # 휴머노이드/로봇
+                '454910': '두산로보틱스', '445090': '두산에이앤피', '300120': '나우IB',
+                '452280': '한화우주항공', '451700': '노바렉스', '456440': '두산퓨얼셀',
+                '214180': '두산밥캣', '215480': '이글루시큐리티', '456440': '코오롱인더스트리',
+                '214180': '두산에스엔티',
+                
+                # S&P지수
+                
+                # 기타
+                '055550': '신한지주', '105560': 'KB금융', '086790': '하나금융지주',
+                '316140': '우리금융지주', '139480': '이마트', '009970': '영원무역홀딩스',
             }
             
-            name = korean_names.get(clean_ticker, f"({clean_ticker})")
+            # 1순위: 구글 시트 종목명
+            # 2순위: 내장 한글 종목명
+            # 3순위: 종목코드
+            if 'stock_names' in st.session_state and clean_ticker in st.session_state.stock_names:
+                name = st.session_state.stock_names[clean_ticker]
+            else:
+                name = korean_names.get(clean_ticker, f"({clean_ticker})")
         else:
             return None, None
         
@@ -279,7 +371,12 @@ with st.sidebar:
             st.session_state.sheet_url = sheet_url
             
             with st.spinner("📥 데이터 로딩 중..."):
-                df_stocks = load_google_sheet(sheet_url)
+                df_stocks, stock_names_dict = load_google_sheet(sheet_url)
+            
+            # session_state에 종목명 딕셔너리 저장
+            if "stock_names" not in st.session_state:
+                st.session_state.stock_names = {}
+            st.session_state.stock_names = stock_names_dict
             
             if df_stocks is not None and not df_stocks.empty:
                 # 컬럼명 확인
@@ -559,8 +656,93 @@ with tab2:
             st.subheader("📈 백테스팅 결과")
             tickers = [t.strip() for t in selected_tickers.split(',') if t.strip()]
             
+            # 모든 종목 백테스팅 결과 수집
+            all_results = []
+            
             for ticker in tickers:
                 df, name = get_data(ticker)
+                if df is None or df.empty or len(df) < 60:
+                    continue
+                
+                df = calculate_ma(df)
+                df = calculate_stochastic(df, k_period, d_period, smooth_k)
+                df = calculate_rsi(df, rsi_period)
+                df = generate_signals(df, oversold, overbought)
+                
+                results = run_backtest(df)
+                all_results.append({
+                    'ticker': ticker,
+                    'name': name,
+                    'return': results['total_return'],
+                    'win_rate': results['win_rate'],
+                    'trades': results['total_trades'],
+                    'pl_ratio': results['profit_loss_ratio']
+                })
+            
+            # 🏆 랭킹 표시
+            if all_results:
+                st.markdown("---")
+                st.markdown("## 🏆 백테스팅 랭킹 (수익률 상위)")
+                
+                # 수익률 기준 정렬
+                sorted_results = sorted(all_results, key=lambda x: x['return'], reverse=True)
+                
+                # Top 10 표시
+                top_10 = sorted_results[:10]
+                
+                for idx, result in enumerate(top_10, 1):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        # 순위 메달
+                        if idx == 1:
+                            medal = "🥇"
+                        elif idx == 2:
+                            medal = "🥈"
+                        elif idx == 3:
+                            medal = "🥉"
+                        else:
+                            medal = f"**{idx}위**"
+                        
+                        st.markdown(f"<h2 style='text-align: center; margin: 0;'>{medal}</h2>", unsafe_allow_html=True)
+                    
+                    with col2:
+                        profit_color = "#22c55e" if result['return'] > 0 else "#ef4444"
+                        st.markdown(f"""
+                        <div style='background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 10px; margin: 5px 0;'>
+                            <div style='font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 5px;'>
+                                {result['name']} ({result['ticker']})
+                            </div>
+                            <div style='display: flex; gap: 20px;'>
+                                <div>
+                                    <span style='color: #888; font-size: 13px;'>수익률: </span>
+                                    <span style='color: {profit_color}; font-size: 20px; font-weight: bold;'>{result['return']:+.2f}%</span>
+                                </div>
+                                <div>
+                                    <span style='color: #888; font-size: 13px;'>승률: </span>
+                                    <span style='color: #3b82f6; font-size: 16px; font-weight: bold;'>{result['win_rate']:.1f}%</span>
+                                </div>
+                                <div>
+                                    <span style='color: #888; font-size: 13px;'>거래: </span>
+                                    <span style='color: #a855f7; font-size: 16px; font-weight: bold;'>{result['trades']}회</span>
+                                </div>
+                                <div>
+                                    <span style='color: #888; font-size: 13px;'>손익비: </span>
+                                    <span style='color: #f59e0b; font-size: 16px; font-weight: bold;'>{result['pl_ratio']:.2f}</span>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                st.markdown("## 📊 종목별 상세 결과")
+            
+            # 기존 상세 결과 표시
+            for result_data in all_results:
+                ticker = result_data['ticker']
+                name = result_data['name']
+                
+                df, _ = get_data(ticker)
                 if df is None or df.empty or len(df) < 60:
                     continue
                 
