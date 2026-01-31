@@ -356,6 +356,21 @@ with st.sidebar:
             st.info("💡 구글 시트 URL을 입력하세요")
     
     st.markdown("---")
+    
+    # 지표 설정 추가
+    st.subheader("📊 지표 설정")
+    col1, col2 = st.columns(2)
+    with col1:
+        k_period = st.number_input("Fast %K", value=8, min_value=1, max_value=20, step=1)
+        oversold = st.slider("매수 기준", 0, 50, 25)
+    with col2:
+        d_period = st.number_input("Slow %D", value=5, min_value=1, max_value=20, step=1)
+        overbought = st.slider("매도 기준", 50, 100, 75)
+    
+    smooth_k = st.number_input("Smooth %K", value=5, min_value=1, max_value=20, step=1)
+    rsi_period = st.number_input("RSI 기간", value=14, min_value=5, max_value=30, step=1)
+    
+    st.markdown("---")
     analyze_btn = st.button("🚀 AI 분석 시작", type="primary", use_container_width=True)
     
     st.markdown("---")
@@ -388,9 +403,9 @@ with tab1:
                 
                 # 지표 계산
                 df = calculate_ma(df)
-                df = calculate_stochastic(df)
-                df = calculate_rsi(df)
-                df = generate_signals(df)
+                df = calculate_stochastic(df, k_period, d_period, smooth_k)
+                df = calculate_rsi(df, rsi_period)
+                df = generate_signals(df, oversold, overbought)
                 
                 curr = df.iloc[-1]
                 is_strong_buy = curr.get('Strong_Buy', False)
@@ -434,7 +449,7 @@ with tab1:
                         <div style='font-size: 26px; font-weight: bold; color: {"#22c55e" if is_strong_buy else "#888"};'>
                             {"✅ 적극매수" if is_strong_buy else "⏸️ 대기"}
                         </div>
-                        <div style='color: #666; font-size: 12px;'>%K<25 & %D<25 골든크로스</div>
+                        <div style='color: #666; font-size: 12px;'>%K<{oversold} & %D<{oversold} 골든크로스</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -506,8 +521,8 @@ with tab1:
                                        name='%K'), row=3, col=1)
                 fig.add_trace(go.Scatter(x=df.index, y=df['%D'], line=dict(color='#FF6D00', width=2),
                                        name='%D'), row=3, col=1)
-                fig.add_hline(y=25, line_dash="dash", line_color="#00E676", line_width=2, row=3, col=1)
-                fig.add_hline(y=75, line_dash="dash", line_color="#FF1744", line_width=2, row=3, col=1)
+                fig.add_hline(y=oversold, line_dash="dash", line_color="#00E676", line_width=2, row=3, col=1)
+                fig.add_hline(y=overbought, line_dash="dash", line_color="#FF1744", line_width=2, row=3, col=1)
                 
                 fig.update_layout(
                     height=700, template="plotly_dark", showlegend=False,
@@ -550,9 +565,9 @@ with tab2:
                     continue
                 
                 df = calculate_ma(df)
-                df = calculate_stochastic(df)
-                df = calculate_rsi(df)
-                df = generate_signals(df)
+                df = calculate_stochastic(df, k_period, d_period, smooth_k)
+                df = calculate_rsi(df, rsi_period)
+                df = generate_signals(df, oversold, overbought)
                 
                 results = run_backtest(df)
                 
