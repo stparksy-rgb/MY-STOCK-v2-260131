@@ -357,14 +357,17 @@ with st.sidebar:
     else:  # 구글 시트 테마
         st.markdown("#### 📊 구글 시트 연동")
         
+        # 기본 구글 시트 URL (하드코딩)
+        DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1t6pSJ68LQaxk2FpEibhe56k7f2tz_7MpiNzK9jCzrVk/edit?gid=0#gid=0"
+        
         if "sheet_url" not in st.session_state:
-            st.session_state.sheet_url = ""
+            st.session_state.sheet_url = DEFAULT_SHEET_URL
         
         sheet_url = st.text_input(
             "구글 시트 URL",
             value=st.session_state.sheet_url,
             placeholder="https://docs.google.com/spreadsheets/...",
-            help="공유 링크를 붙여넣으세요"
+            help="기본 시트가 자동 로드됩니다. 다른 시트 사용 시 URL을 변경하세요."
         )
         
         if sheet_url:
